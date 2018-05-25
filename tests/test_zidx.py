@@ -1,11 +1,13 @@
 import unittest
+import secrets
 
 import zidx
 
 
 class TestZIDX(unittest.TestCase):
     def setUp(self):
-        self.client = zidx.Client(5, 0.001)
+        key = secrets.token_bytes(32)
+        self.client = zidx.Client(5, 0.001, key)
         self.idx = self.client.buildIndex("foo", ["dog", "cat"])
 
     def test_contain(self):
@@ -24,7 +26,16 @@ class TestZIDX(unittest.TestCase):
 
     def test_keynum_mismatch(self):
         self.assertRaises(ValueError,
-                          zidx.Client, 5, 0.001, keys=(b"deadbeef",))
+                          zidx.Client, 5, 0.001, key=(b"deadbeef",))
+
+    def test_key_derivation(self):
+        k1 = self.client._derive_keys(b"deadbeef")
+        k2 = self.client._derive_keys(b"deadbeef")
+        self.assertEqual(k1, k2)
+        self.assertEqual(len(k1), self.client.num_keys)
+        self.assertEqual(len(k1), len(set(k1)))
+        for subkey in k1:
+            self.assertEqual(len(subkey), zidx.zidx.HASHLEN_BITS // 8)
 
 
 if __name__ == '__main__':

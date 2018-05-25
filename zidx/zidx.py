@@ -2,7 +2,7 @@
 
 import math
 import secrets
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 from BitVector import BitVector
 
@@ -30,17 +30,31 @@ class Client(object):
     def __init__(self,
                  max_elements: int,
                  fp_rate: float,
-                 keys: Tuple[bytes, ...] = ()) -> None:
+                 key: Union[bytes, Tuple[bytes, ...]]) -> None:
         self.max_elements = max_elements
         self.fp_rate = fp_rate
-        if keys:
-            req_num_keys = _calc_num_keys(fp_rate)
-            if len(keys) != req_num_keys:
+        self.num_keys = _calc_num_keys(fp_rate)
+        if isinstance(key, tuple):
+            if len(key) != self.num_keys:
                 raise ValueError("Number of keys does not match desired "
-                                 "fp_rate. Should be %d." % req_num_keys)
+                                 "fp_rate. Should be %d." % self.num_keys)
+        elif isinstance(key, bytes):
+            key = self._derive_keys(key)
         else:
-            keys = keygen(fp_rate)
-        self.__keys = keys
+            raise TypeError("key should be either a tuple of sub-keys"
+                            " or a master key in bytes")
+        self.__keys = key
+
+    def _derive_keys(self, master_key: bytes) -> Tuple[bytes, ...]:
+        from hashlib import blake2b
+        return tuple(
+            blake2b(
+                b'',
+                digest_size=HASHLEN_BITS // 8,
+                key=master_key,
+                salt=str(subkeyid).encode(),
+            ).digest() for subkeyid in range(self.num_keys)
+        )
 
     def trapdoor(self, word: str) -> Tuple[bytes, ...]:
         return tuple(_hmac(key, word) for key in self.__keys)
