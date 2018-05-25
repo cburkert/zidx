@@ -28,6 +28,14 @@ class TestZIDX(unittest.TestCase):
         self.assertRaises(ValueError,
                           zidx.Client, 5, 0.001, key=(b"deadbeef",))
 
+    def test_create_from_bitstring(self):
+        idx2 = zidx.Index("foo", bitstring=self.idx.to_bitstring())
+        self.assertEqual(self.idx, idx2)
+        trap_dog = self.client.trapdoor("dog")
+        self.assertTrue(trap_dog in idx2)
+        trap_mouse = self.client.trapdoor("mouse")
+        self.assertTrue(trap_mouse not in idx2)
+
     def test_key_derivation(self):
         k1 = self.client._derive_keys(b"deadbeef")
         k2 = self.client._derive_keys(b"deadbeef")

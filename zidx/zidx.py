@@ -66,7 +66,9 @@ class Client(object):
         return tuple(random.sample(trap, len(trap) // 2))
 
     def buildIndex(self, docId: str, words: List[str]) -> 'Index':
-        idx = Index(docId, self.max_elements, self.fp_rate)
+        idx = Index(docId,
+                    max_elements=self.max_elements,
+                    fp_rate=self.fp_rate)
         for word in words:
             trap = self.trapdoor(word)
             idx.add(trap)
@@ -83,14 +85,22 @@ class Index(object):
     """Secure index for a document"""
     BYTEORDER = 'little'
 
-    def __init__(self, docId: str, max_elements: int, fp_rate: float) -> None:
+    def __init__(self, docId: str,
+                 max_elements: int = 0,
+                 fp_rate: float = 0,
+                 bitstring: str = "") -> None:
         self.docId = docId
-        self.max_elements = max_elements
-        self.fp_rate = fp_rate
-        self.num_keys = _calc_num_keys(self.fp_rate)
-        self.bf_size_bits = math.ceil((self.num_keys * max_elements) /
-                                      math.log(2))
-        self.__bf = BitVector(size=self.bf_size_bits)
+        if bitstring:
+            self.__bf = BitVector(bitstring=bitstring)
+            self.bf_size_bits = len(bitstring)
+        elif max_elements and fp_rate:
+            self.num_keys = _calc_num_keys(fp_rate)
+            self.bf_size_bits = math.ceil((self.num_keys * max_elements) /
+                                          math.log(2))
+            self.__bf = BitVector(size=self.bf_size_bits)
+        else:
+            raise ValueError("Either supply bitstring or"
+                             "max_elements and fp_rate")
 
     def codeword(self, trapdoor: Tuple[bytes, ...]) -> Tuple[bytes, ...]:
         return tuple(_hmac(x, self.docId) for x in trapdoor)
@@ -113,13 +123,24 @@ class Index(object):
         return self.search(trapdoor)
 
     def blind(self, numwords: int) -> None:
+        if not hasattr(self, 'num_keys'):
+            raise ValueError("Cannot blind this index. "
+                             "Number of keys is unknown.")
         random = secrets.SystemRandom()
         for _ in range(numwords * self.num_keys):
             self.__bf[random.randrange(self.bf_size_bits)] = 1
 
+    def to_bitstring(self) -> str:
+        return str(self.__bf)
+
+    def __eq__(self, other) -> bool:
+        return isinstance(self, other.__class__) and all((
+            self.docId == other.docId,
+            self.__bf == other.__bf,
+        ))
+
     def __repr__(self) -> str:
-        return 'Index(%r, %r, fp_rate=%r)' % (
+        return 'Index(%r, bitstring=%r)' % (
             self.docId,
-            self.max_elements,
-            self.fp_rate
+            str(self.__bf),
         )
