@@ -2,7 +2,7 @@
 
 import math
 import secrets
-from typing import Tuple, List, Union
+from typing import Sequence, Tuple, Union
 
 from BitVector import BitVector
 
@@ -65,7 +65,7 @@ class Client(object):
         random = secrets.SystemRandom()
         return tuple(random.sample(trap, len(trap) // 2))
 
-    def buildIndex(self, docId: str, words: List[str]) -> 'Index':
+    def buildIndex(self, docId: str, words: Sequence[str]) -> 'Index':
         idx = Index(docId,
                     max_elements=self.max_elements,
                     fp_rate=self.fp_rate)
