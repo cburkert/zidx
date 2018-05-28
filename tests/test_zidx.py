@@ -45,6 +45,11 @@ class TestZIDX(unittest.TestCase):
         for subkey in k1:
             self.assertEqual(len(subkey), zidx.zidx.HASHLEN_BITS // 8)
 
+    def test_trapdoor_serializer(self):
+        trap = self.client.trapdoor("dog")
+        hexcsv = trap.toHexCSV()
+        self.assertEqual(trap, zidx.Trapdoor.fromHexCSV(hexcsv))
+
 
 if __name__ == '__main__':
     unittest.main()

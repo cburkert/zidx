@@ -2,7 +2,7 @@
 
 import math
 import secrets
-from typing import Sequence, Tuple, Union
+from typing import Iterator, Sequence, Tuple, Union
 
 from BitVector import BitVector
 
@@ -24,6 +24,22 @@ def _hmac(key: bytes, word: str) -> bytes:
 
 def _calc_num_keys(fp_rate: float) -> int:
     return math.ceil(-1 * math.log2(fp_rate))
+
+
+class Trapdoor(tuple):
+    def __new__(cls, traps: Iterator[bytes]) -> 'Trapdoor':
+        return super(Trapdoor, cls).__new__(cls, traps)
+
+    def toHexCSV(self) -> str:
+        return ",".join(
+            b.hex() for b in self
+        )
+
+    @staticmethod
+    def fromHexCSV(csv: str) -> 'Trapdoor':
+        return Trapdoor(
+            bytes.fromhex(h) for h in csv.split(',')
+        )
 
 
 class Client(object):
@@ -56,14 +72,14 @@ class Client(object):
             ).digest() for subkeyid in range(self.num_keys)
         )
 
-    def trapdoor(self, word: str) -> Tuple[bytes, ...]:
-        return tuple(_hmac(key, word) for key in self.__keys)
+    def trapdoor(self, word: str) -> Trapdoor:
+        return Trapdoor(_hmac(key, word) for key in self.__keys)
 
-    def partial_trapdoor(self, word: str) -> Tuple[bytes, ...]:
+    def partial_trapdoor(self, word: str) -> Trapdoor:
         """Randomly selects a subset of trapdoor to ofuscate query."""
         trap = self.trapdoor(word)
         random = secrets.SystemRandom()
-        return tuple(random.sample(trap, len(trap) // 2))
+        return Trapdoor(iter(random.sample(trap, len(trap) // 2)))
 
     def buildIndex(self, docId: str, words: Sequence[str]) -> 'Index':
         idx = Index(docId,
@@ -102,10 +118,10 @@ class Index(object):
             raise ValueError("Either supply bitstring or"
                              "max_elements and fp_rate")
 
-    def codeword(self, trapdoor: Tuple[bytes, ...]) -> Tuple[bytes, ...]:
+    def codeword(self, trapdoor: Trapdoor) -> Tuple[bytes, ...]:
         return tuple(_hmac(x, self.docId) for x in trapdoor)
 
-    def add(self, trapdoor: Tuple[bytes, ...]) -> None:
+    def add(self, trapdoor: Trapdoor) -> None:
         for w in self.codeword(trapdoor):
             self.__bf[self.__get_bf_index(w)] = 1
 
@@ -113,13 +129,13 @@ class Index(object):
         return int.from_bytes(key, byteorder=self.BYTEORDER) % (
             self.bf_size_bits)
 
-    def search(self, trapdoor: Tuple[bytes, ...]) -> bool:
+    def search(self, trapdoor: Trapdoor) -> bool:
         return all(self.__is_set(code) for code in self.codeword(trapdoor))
 
     def __is_set(self, key: bytes) -> bool:
         return self.__bf[self.__get_bf_index(key)] is 1
 
-    def __contains__(self, trapdoor: Tuple[bytes, ...]) -> bool:
+    def __contains__(self, trapdoor: Trapdoor) -> bool:
         return self.search(trapdoor)
 
     def blind(self, numwords: int) -> None:

@@ -1,11 +1,13 @@
 from .zidx import (
     Client,
     Index,
-    keygen
+    Trapdoor,
+    keygen,
 )
 
 __all__ = [
     'Client',
     'Index',
+    'Trapdoor',
     'keygen',
 ]
