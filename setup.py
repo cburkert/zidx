@@ -5,13 +5,13 @@ from setuptools import (
 
 
 def readme():
-    with open('README.rst') as f:
+    with open('README.rst', "r", encoding="UTF-8") as f:
         return f.read()
 
 
 setup(
     name='zidx',
-    version='0.0.1',
+    version='0.0.2',
     description='Implementation of secure indexing scheme by Goh',
     long_description=readme(),
     author='Christian Burkert',
